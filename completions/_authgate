@@ -1,0 +1,103 @@
+#compdef authgate
+# zsh completion for authgate
+# Install via Homebrew: ships to $(brew --prefix)/share/zsh/site-functions/_authgate
+
+_authgate() {
+  local curcontext="$curcontext" state line
+  local -A opt_args
+
+  _arguments -C \
+    '1: :_authgate_top' \
+    '*::arg:->args'
+
+  case $state in
+    args)
+      local cmd=$words[1]
+      case $cmd in
+        list)
+          _arguments '1: :_authgate_services'
+          ;;
+        services)
+          ;;
+        cf|stripe|vercel|gh|doctl)
+          _arguments -C \
+            '1: :_authgate_verbs' \
+            '*::verbarg:->verbarg'
+
+          if [[ $state == verbarg ]]; then
+            local verb=$words[2]
+            case $verb in
+              add)
+                _arguments \
+                  '1:new profile name:' \
+                  '--force[overwrite if profile exists]'
+                ;;
+              use)
+                _arguments \
+                  "1:profile:_authgate_profiles $cmd" \
+                  '--force[discard unsnapshotted live state]'
+                ;;
+              rm)
+                _arguments \
+                  "1:profile:_authgate_profiles $cmd" \
+                  '--force[remove even if active]'
+                ;;
+            esac
+          fi
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_authgate_top() {
+  local -a cmds
+  cmds=(
+    'list:show services and their profiles'
+    'services:show supported services and install status'
+    'cf:manage cloudflare profiles'
+    'stripe:manage stripe profiles'
+    'vercel:manage vercel profiles'
+    'gh:manage github profiles'
+    'doctl:manage digitalocean profiles'
+  )
+  _describe -t commands 'command' cmds
+}
+
+_authgate_services() {
+  local -a svcs
+  svcs=(
+    'cf:cloudflare (wrangler + cloudflared)'
+    'stripe:stripe cli'
+    'vercel:vercel cli'
+    'gh:github cli'
+    'doctl:digitalocean doctl'
+  )
+  _describe -t services 'service' svcs
+}
+
+_authgate_verbs() {
+  local -a verbs
+  verbs=(
+    'current:show active profile and identity'
+    'list:list profiles for this service'
+    'add:capture current live auth as a profile'
+    'use:switch to a named profile'
+    'rm:delete a profile'
+  )
+  _describe -t verbs 'verb' verbs
+}
+
+_authgate_profiles() {
+  local svc=$1
+  local dir="$HOME/.authgate/profiles/$svc"
+  if [[ -d $dir ]]; then
+    local -a names
+    names=($dir/*(/N:t))
+    if (( ${#names} > 0 )); then
+      _values 'profile' $names
+    fi
+  fi
+}
+
+_authgate "$@"

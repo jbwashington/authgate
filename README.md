@@ -42,6 +42,8 @@ Paths shown are macOS — Linux variants are handled automatically where the CLI
 brew install jbwashington/tap/authgate
 ```
 
+Ships a zsh completion to `$(brew --prefix)/share/zsh/site-functions/_authgate`. Open a new shell, then `authgate <TAB>` cycles through services and verbs; `authgate cf use <TAB>` completes the profile names you've saved.
+
 ### pipx (any platform)
 
 ```sh
