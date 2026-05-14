@@ -19,42 +19,89 @@ _authgate() {
           ;;
         services)
           ;;
+        use)
+          _arguments \
+            '1: :_authgate_groups_and_shared_profiles' \
+            '--force[discard unsnapshotted live state]'
+          ;;
+        group)
+          _authgate_group_dispatch
+          ;;
         cf|stripe|vercel|gh|doctl)
-          _arguments -C \
-            '1: :_authgate_verbs' \
-            '*::verbarg:->verbarg'
-
-          if [[ $state == verbarg ]]; then
-            local verb=$words[2]
-            case $verb in
-              add)
-                _arguments \
-                  '1:new profile name:' \
-                  '--force[overwrite if profile exists]'
-                ;;
-              use)
-                _arguments \
-                  "1:profile:_authgate_profiles $cmd" \
-                  '--force[discard unsnapshotted live state]'
-                ;;
-              rm)
-                _arguments \
-                  "1:profile:_authgate_profiles $cmd" \
-                  '--force[remove even if active]'
-                ;;
-            esac
-          fi
+          _authgate_service_dispatch $cmd
           ;;
       esac
       ;;
   esac
 }
 
+_authgate_service_dispatch() {
+  local svc=$1
+  _arguments -C \
+    '1: :_authgate_verbs' \
+    '*::verbarg:->verbarg'
+
+  if [[ $state == verbarg ]]; then
+    local verb=$words[2]
+    case $verb in
+      add)
+        _arguments \
+          '1:new profile name:' \
+          '--force[overwrite if profile exists]'
+        ;;
+      use)
+        _arguments \
+          "1:profile:_authgate_profiles $svc" \
+          '--force[discard unsnapshotted live state]'
+        ;;
+      rm)
+        _arguments \
+          "1:profile:_authgate_profiles $svc" \
+          '--force[remove even if active]'
+        ;;
+      rename)
+        _arguments \
+          "1:current name:_authgate_profiles $svc" \
+          '2:new name:' \
+          '--force[overwrite if target name exists]'
+        ;;
+    esac
+  fi
+}
+
+_authgate_group_dispatch() {
+  _arguments -C \
+    '1: :_authgate_group_verbs' \
+    '*::garg:->garg'
+
+  if [[ $state == garg ]]; then
+    local verb=$words[2]
+    case $verb in
+      list)
+        ;;
+      show|rm)
+        _arguments "1:group:_authgate_group_names"
+        ;;
+      create)
+        _arguments \
+          '1:new group name:' \
+          "--cf=[cloudflare profile]:profile:_authgate_profiles cf" \
+          "--stripe=[stripe profile]:profile:_authgate_profiles stripe" \
+          "--vercel=[vercel profile]:profile:_authgate_profiles vercel" \
+          "--gh=[github profile]:profile:_authgate_profiles gh" \
+          "--doctl=[digitalocean profile]:profile:_authgate_profiles doctl"
+        ;;
+    esac
+  fi
+}
+
 _authgate_top() {
   local -a cmds
   cmds=(
-    'list:show services and their profiles'
+    'list:show services, profiles, and groups'
     'services:show supported services and install status'
+    'use:switch every service to a group or shared profile name'
+    'group:manage explicit cross-service groups'
     'cf:manage cloudflare profiles'
     'stripe:manage stripe profiles'
     'vercel:manage vercel profiles'
@@ -84,6 +131,18 @@ _authgate_verbs() {
     'add:capture current live auth as a profile'
     'use:switch to a named profile'
     'rm:delete a profile'
+    'rename:rename a profile'
+  )
+  _describe -t verbs 'verb' verbs
+}
+
+_authgate_group_verbs() {
+  local -a verbs
+  verbs=(
+    'list:list defined groups'
+    'show:show what a group/profile-name would switch'
+    'create:create or update an explicit group'
+    'rm:delete a group'
   )
   _describe -t verbs 'verb' verbs
 }
@@ -97,6 +156,40 @@ _authgate_profiles() {
     if (( ${#names} > 0 )); then
       _values 'profile' $names
     fi
+  fi
+}
+
+_authgate_group_names() {
+  local groups_file="$HOME/.authgate/groups.json"
+  if [[ -f $groups_file ]]; then
+    local -a names
+    names=("${(@f)$(/usr/bin/python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).get('groups',{}).keys()))" "$groups_file" 2>/dev/null)}")
+    if (( ${#names} > 0 )); then
+      _values 'group' $names
+    fi
+  fi
+}
+
+_authgate_groups_and_shared_profiles() {
+  # For top-level `authgate use <TAB>`: offer both explicit group names
+  # and profile names that exist across multiple services.
+  local groups_file="$HOME/.authgate/groups.json"
+  local -a candidates
+  if [[ -f $groups_file ]]; then
+    candidates+=("${(@f)$(/usr/bin/python3 -c "import json,sys; print('\n'.join(json.load(open(sys.argv[1])).get('groups',{}).keys()))" "$groups_file" 2>/dev/null)}")
+  fi
+  # Profile names found in any service profile dir
+  local svc dir
+  for svc in cf stripe vercel gh doctl; do
+    dir="$HOME/.authgate/profiles/$svc"
+    if [[ -d $dir ]]; then
+      candidates+=($dir/*(/N:t))
+    fi
+  done
+  # de-dupe and filter empties
+  candidates=(${(u)candidates:#})
+  if (( ${#candidates} > 0 )); then
+    _values 'group or profile' $candidates
   fi
 }
 

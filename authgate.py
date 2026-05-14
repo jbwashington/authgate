@@ -25,6 +25,7 @@ HOME = Path.home()
 GATE_DIR = HOME / ".authgate"
 PROFILES_DIR = GATE_DIR / "profiles"
 STATE_FILE = GATE_DIR / "state.json"
+GROUPS_FILE = GATE_DIR / "groups.json"
 
 
 @dataclass
@@ -109,6 +110,40 @@ def set_active(svc_key: str, name: str | None) -> None:
     else:
         state[svc_key] = name
     save_state(state)
+
+
+# --- groups ----------------------------------------------------------------
+
+
+def load_groups() -> dict:
+    if not GROUPS_FILE.exists():
+        return {}
+    return json.loads(GROUPS_FILE.read_text()).get("groups", {})
+
+
+def save_groups(groups: dict) -> None:
+    GATE_DIR.mkdir(parents=True, exist_ok=True)
+    GROUPS_FILE.write_text(json.dumps({"groups": groups}, indent=2, sort_keys=True))
+    os.chmod(GROUPS_FILE, 0o600)
+
+
+def resolve_group(name: str) -> dict[str, str]:
+    """Return svc_key → profile_name mapping for `name`.
+
+    Explicit groups (~/.authgate/groups.json) take precedence. If no explicit
+    group exists, fall back to convention: every service that has a profile
+    named `name` is included with that profile.
+    """
+    groups = load_groups()
+    if name in groups:
+        return dict(groups[name])
+    convention = {k: name for k, svc in SERVICES.items() if profile_dir(svc, name).exists()}
+    if not convention:
+        die(
+            f"no group or profile named '{name}'. "
+            f"Run `authgate list` to see what's available."
+        )
+    return convention
 
 
 # --- snapshot / restore ----------------------------------------------------
@@ -207,6 +242,12 @@ def cmd_list_all(_args) -> None:
         print(f"  {svc.key:8} {', '.join(rendered)}")
     if not any_profile:
         print("  (no services configured yet — run `authgate <svc> add <name>` to start)")
+    groups = load_groups()
+    if groups:
+        print("\ngroups:")
+        for name in sorted(groups):
+            pairs = ", ".join(f"{k}={v}" for k, v in sorted(groups[name].items()))
+            print(f"  {name:10} {pairs}")
 
 
 def cmd_list(args) -> None:
@@ -262,21 +303,20 @@ def cmd_add(args) -> None:
     print(f"captured {n} path(s) → profile '{name}' (now active for {svc.name})")
 
 
-def cmd_use(args) -> None:
-    svc = resolve_service(args.service)
-    name = args.name
+def _switch_service(svc: Service, name: str, *, force: bool = False) -> int:
+    """Snapshot current live state back to the previously-active profile,
+    then restore the named profile. Returns number of paths restored.
+    """
     target = profile_dir(svc, name)
     if not target.exists():
         existing = list_profiles(svc)
         hint = f" Known: {', '.join(existing)}" if existing else " (none captured yet)"
         die(f"no profile '{name}' for {svc.name}.{hint}")
-    # Safety: sync current live state back to whichever profile is currently marked active,
-    # so token rotations (refresh_token churn) don't get lost.
     current = active_profile(svc.key)
     live_present = any(p.exists() for p in svc.paths)
     if live_present:
         if current is None:
-            if not args.force:
+            if not force:
                 die(
                     f"live {svc.name} auth exists but no profile is marked active.\n"
                     f"Run `authgate {svc.key} add <name>` to capture it first, or pass --force to discard."
@@ -285,7 +325,13 @@ def cmd_use(args) -> None:
             snapshot(svc, profile_dir(svc, current))
     n = restore(svc, target)
     set_active(svc.key, name)
-    print(f"restored {n} path(s) ← profile '{name}' ({svc.name})")
+    return n
+
+
+def cmd_use(args) -> None:
+    svc = resolve_service(args.service)
+    n = _switch_service(svc, args.name, force=args.force)
+    print(f"restored {n} path(s) ← profile '{args.name}' ({svc.name})")
     if svc.whoami:
         try:
             r = subprocess.run(svc.whoami, capture_output=True, text=True, timeout=15)
@@ -294,6 +340,121 @@ def cmd_use(args) -> None:
                 print(f"  {first_line[0]}")
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass
+
+
+def cmd_top_use(args) -> None:
+    """`authgate use <name>` — switch every service the group/convention covers."""
+    name = args.name
+    mapping = resolve_group(name)
+    missing = [
+        f"{svc_key}:{profile}"
+        for svc_key, profile in mapping.items()
+        if not profile_dir(SERVICES[svc_key], profile).exists()
+    ]
+    if missing:
+        die(f"group '{name}' references missing profiles: {', '.join(missing)}")
+    is_explicit = name in load_groups()
+    print(f"switching to {'group' if is_explicit else 'profile'} '{name}'")
+    for svc_key, profile in mapping.items():
+        svc = SERVICES[svc_key]
+        _switch_service(svc, profile, force=args.force)
+        print(f"  {svc_key:8} → {profile}")
+    skipped = [k for k in SERVICES if k not in mapping]
+    if skipped:
+        print(f"  (skipped: {', '.join(skipped)})")
+
+
+def cmd_rename(args) -> None:
+    svc = resolve_service(args.service)
+    src = profile_dir(svc, args.old)
+    dst = profile_dir(svc, args.new)
+    if not src.exists():
+        die(f"no profile '{args.old}' for {svc.name}.")
+    if args.old == args.new:
+        die("old and new names are the same.")
+    if dst.exists() and not args.force:
+        die(f"profile '{args.new}' already exists for {svc.name}. Use --force to overwrite.")
+    if dst.exists():
+        shutil.rmtree(dst)
+    src.rename(dst)
+    if active_profile(svc.key) == args.old:
+        set_active(svc.key, args.new)
+    groups = load_groups()
+    touched_groups = []
+    for gname, mapping in groups.items():
+        if mapping.get(svc.key) == args.old:
+            mapping[svc.key] = args.new
+            touched_groups.append(gname)
+    if touched_groups:
+        save_groups(groups)
+    msg = f"renamed {svc.name} profile '{args.old}' → '{args.new}'"
+    if touched_groups:
+        msg += f" (updated in groups: {', '.join(touched_groups)})"
+    print(msg)
+
+
+def cmd_group_list(args) -> None:
+    groups = load_groups()
+    if not groups:
+        print(
+            "no explicit groups defined.\n"
+            "  `authgate use <name>` switches every service that has a profile named <name>.\n"
+            "  Define an explicit mapping with `authgate group create <name> --cf=foo --vercel=bar`."
+        )
+        return
+    for name in sorted(groups):
+        pairs = ", ".join(f"{k}={v}" for k, v in sorted(groups[name].items()))
+        print(f"  {name}: {pairs}")
+
+
+def cmd_group_show(args) -> None:
+    name = args.name
+    groups = load_groups()
+    if name in groups:
+        print(f"group '{name}' (explicit):")
+        for k, v in sorted(groups[name].items()):
+            print(f"  {k:8} → {v}")
+        return
+    convention = {k: name for k, svc in SERVICES.items() if profile_dir(svc, name).exists()}
+    if convention:
+        print(f"'{name}' (convention — no explicit group; would switch:)")
+        for k, v in sorted(convention.items()):
+            print(f"  {k:8} → {v}")
+    else:
+        die(f"no group or profile named '{name}'.")
+
+
+def cmd_group_create(args) -> None:
+    name = args.name
+    mapping: dict[str, str] = {}
+    for svc_key in SERVICES:
+        value = getattr(args, svc_key, None)
+        if not value:
+            continue
+        svc = SERVICES[svc_key]
+        if not profile_dir(svc, value).exists():
+            die(
+                f"profile '{value}' does not exist for {svc.name}. "
+                f"Existing: {', '.join(list_profiles(svc)) or '(none)'}"
+            )
+        mapping[svc_key] = value
+    if not mapping:
+        die(f"group '{name}' would be empty. Pass at least one --<svc>=<profile>.")
+    groups = load_groups()
+    existed = name in groups
+    groups[name] = mapping
+    save_groups(groups)
+    pairs = ", ".join(f"{k}={v}" for k, v in sorted(mapping.items()))
+    print(f"{'updated' if existed else 'created'} group '{name}': {pairs}")
+
+
+def cmd_group_rm(args) -> None:
+    groups = load_groups()
+    if args.name not in groups:
+        die(f"no group '{args.name}'.")
+    del groups[args.name]
+    save_groups(groups)
+    print(f"removed group '{args.name}'.")
 
 
 def cmd_rm(args) -> None:
@@ -332,8 +493,40 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("services", help="show supported services").set_defaults(func=cmd_services)
 
-    # per-service commands take form: authgate <svc> <verb> [name]
-    # We also expose: authgate <verb> <svc> [name] won't be supported — keep it tight.
+    top_use = sub.add_parser(
+        "use",
+        help="switch every service to a group or shared profile name",
+    )
+    top_use.add_argument("name", help="explicit group name or a profile name shared across services")
+    top_use.add_argument("--force", action="store_true", help="discard unsnapshotted live state")
+    top_use.set_defaults(func=cmd_top_use)
+
+    # `authgate group` subtree
+    group = sub.add_parser("group", help="manage explicit cross-service groups")
+    group_sub = group.add_subparsers(dest="verb", required=True)
+
+    g_list = group_sub.add_parser("list", help="list defined groups")
+    g_list.set_defaults(func=cmd_group_list)
+
+    g_show = group_sub.add_parser("show", help="show what a group/profile-name would switch")
+    g_show.add_argument("name")
+    g_show.set_defaults(func=cmd_group_show)
+
+    g_create = group_sub.add_parser("create", help="create or update an explicit group")
+    g_create.add_argument("name")
+    for svc_key in SERVICES:
+        g_create.add_argument(
+            f"--{svc_key}",
+            metavar="PROFILE",
+            help=f"profile name for {SERVICES[svc_key].name}",
+        )
+    g_create.set_defaults(func=cmd_group_create)
+
+    g_rm = group_sub.add_parser("rm", help="delete a group")
+    g_rm.add_argument("name")
+    g_rm.set_defaults(func=cmd_group_rm)
+
+    # per-service commands: authgate <svc> <verb> [args]
     for svc_key in SERVICES:
         sp = sub.add_parser(svc_key, help=f"manage {SERVICES[svc_key].name} profiles")
         svc_sub = sp.add_subparsers(dest="verb", required=True)
@@ -358,6 +551,12 @@ def build_parser() -> argparse.ArgumentParser:
         rm.add_argument("name")
         rm.add_argument("--force", action="store_true", help="remove even if active")
         rm.set_defaults(func=cmd_rm, service=svc_key)
+
+        ren = svc_sub.add_parser("rename", help="rename a profile (updates groups + active marker)")
+        ren.add_argument("old")
+        ren.add_argument("new")
+        ren.add_argument("--force", action="store_true", help="overwrite if target name exists")
+        ren.set_defaults(func=cmd_rename, service=svc_key)
 
     return p
 

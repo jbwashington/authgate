@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "authgate"
-version = "0.1.1"
+version = "0.2.0"
 description = "Switch user-level CLI auth between named profiles (cloudflare, stripe, vercel, gh, doctl)"
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -13,13 +13,16 @@ $ authgate list
   vercel   personal, work*
   gh       personal*
 
-$ authgate cf use work
-restored 2 path(s) ← profile 'work' (cloudflare)
-  ⛅️ wrangler 4.42.2
-👋 You are logged in with an OAuth Token, associated with the email me@workdomain.com.
+$ authgate use work                    # switch every service to its 'work' profile
+switching to profile 'work'
+  cf       → work
+  stripe   → work
+  vercel   → work
+  (skipped: gh, doctl)
 
-$ authgate cf use personal
+$ authgate cf use personal             # or switch one service at a time
 restored 2 path(s) ← profile 'personal' (cloudflare)
+👋 You are logged in with an OAuth Token, associated with the email me@personal.com.
 ```
 
 ## Supported services
@@ -83,24 +86,79 @@ authgate cf add work
 ### Switch
 
 ```sh
-authgate cf use work
+authgate cf use work                   # one service
 authgate cf use personal
+
+authgate use work                      # all services at once (see Groups below)
 ```
 
 ### Inspect
 
 ```sh
-authgate list              # all services + profiles
+authgate list              # all services + profiles + groups, active marked with *
 authgate cf list           # profiles for one service
 authgate cf current        # active profile + `wrangler whoami` output
 authgate services          # supported tools, marked ✓ if you have them installed
+authgate group show work   # what `authgate use work` would do
 ```
+
+### Rename a profile
+
+```sh
+authgate cf rename foo bar
+```
+
+Renames the profile dir, updates the active-marker if needed, and rewrites any explicit groups that referenced it.
 
 ### Remove a profile
 
 ```sh
 authgate cf rm work
 ```
+
+## Groups
+
+Switching all your services at once usually means flipping a coordinated set of accounts together: "I'm working on the Titan project today" → flip Cloudflare, Vercel, and Stripe simultaneously. authgate handles this two ways:
+
+### Convention-based (no setup needed)
+
+If you name your profiles consistently across services — `cf:titan`, `vercel:titan`, `stripe:titan` — then a single `authgate use titan` switches all of them. Services that don't have a profile by that name are silently skipped. No config file, no `group create`.
+
+```sh
+authgate use titan
+# switching to profile 'titan'
+#   cf       → titan
+#   stripe   → titan
+#   vercel   → titan
+#   (skipped: gh, doctl)
+```
+
+### Explicit groups (when names don't line up)
+
+If your profile names diverge — say Vercel is `7itantech` but Cloudflare is just `titan` — define an explicit mapping. Stored in `~/.authgate/groups.json`.
+
+```sh
+authgate group create titan-mixed \
+  --cf=titan \
+  --vercel=7itantech \
+  --stripe=fullstack
+
+authgate use titan-mixed
+# switching to group 'titan-mixed'
+#   cf       → titan
+#   stripe   → fullstack
+#   vercel   → 7itantech
+```
+
+Explicit groups take precedence over the convention when both apply.
+
+```sh
+authgate group list                    # show all groups
+authgate group show titan-mixed        # preview what a name will do (group or convention)
+authgate group rm titan-mixed
+```
+
+When you rename a profile, any explicit group that referenced it is auto-updated.
 
 ## How it works
 
