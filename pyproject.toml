@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "authgate"
+version = "0.1.0"
+description = "Switch user-level CLI auth between named profiles (cloudflare, stripe, vercel, gh, doctl)"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "James B. Washington", email = "jbwashington@gmail.com" }]
+keywords = ["cli", "auth", "cloudflare", "stripe", "vercel", "github", "profiles", "account-switcher"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: System :: Systems Administration :: Authentication/Directory",
+    "Topic :: Utilities",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/jbwashington/authgate"
+Repository = "https://github.com/jbwashington/authgate"
+Issues = "https://github.com/jbwashington/authgate/issues"
+Changelog = "https://github.com/jbwashington/authgate/releases"
+
+[project.scripts]
+authgate = "authgate:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.hatch.build.targets.wheel]
+include = ["authgate.py"]
+
+[tool.hatch.build.targets.sdist]
+include = ["authgate.py", "README.md", "LICENSE", "pyproject.toml", "tests/"]
