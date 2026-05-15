@@ -180,13 +180,16 @@ It reads only `~/.authgate/state.json` — no subprocesses — so it's cheap to 
 
 ### tmux
 
-Add it to `status-right` (or `status-left`) in `~/.tmux.conf`:
+Add it to `status-left` in `~/.tmux.conf`:
 
 ```tmux
-set -g status-right "#[fg=cyan] #(authgate prompt) #[default]%H:%M"
+set -g status-left-length 200
+set -g status-left "#[fg=cyan] #(authgate prompt) #[default]#S "
 ```
 
 tmux re-runs it every `status-interval` seconds (default 15).
+
+**Put it in `status-left`, not `status-right`.** tmux truncates `status-right` from the *left* when the bar is wider than the terminal — so an indicator placed there is the first thing clipped. `status-left` truncates from the right, so a segment at its start survives. If you only track one or two services, `authgate prompt cf` keeps it short enough for either side.
 
 ### zsh
 
