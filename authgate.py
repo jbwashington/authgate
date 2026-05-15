@@ -81,6 +81,12 @@ SERVICES: dict[str, Service] = {
         paths=[HOME / "Library/Application Support/doctl/config.yaml"],
         whoami=["doctl", "account", "get"],
     ),
+    "supabase": Service(
+        key="supabase",
+        name="supabase",
+        paths=[HOME / ".supabase/access-token"],
+        # supabase cli has no quick `whoami`; skip the identity print on switch
+    ),
 }
 
 

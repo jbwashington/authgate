@@ -57,6 +57,26 @@ def test_services_command(fake_home: Path):
     assert r.returncode == 0, r.stderr
     assert "stripe" in r.stdout
     assert "cf" in r.stdout
+    assert "supabase" in r.stdout
+
+
+def test_supabase_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    token_dir = tmp_path / ".supabase"
+    token_dir.mkdir()
+    token = token_dir / "access-token"
+    token.write_text("sbp_first_token")
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    r = run_authgate(tmp_path, "supabase", "add", "first")
+    assert r.returncode == 0, r.stderr
+
+    token.write_text("sbp_second_token")
+    r = run_authgate(tmp_path, "supabase", "add", "second")
+    assert r.returncode == 0, r.stderr
+
+    r = run_authgate(tmp_path, "supabase", "use", "first")
+    assert r.returncode == 0, r.stderr
+    assert token.read_text() == "sbp_first_token"
 
 
 def test_list_empty(fake_home: Path):

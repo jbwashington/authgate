@@ -27,7 +27,7 @@ _authgate() {
         group)
           _authgate_group_dispatch
           ;;
-        cf|stripe|vercel|gh|doctl)
+        cf|stripe|vercel|gh|doctl|supabase)
           _authgate_service_dispatch $cmd
           ;;
       esac
@@ -89,7 +89,8 @@ _authgate_group_dispatch() {
           "--stripe=[stripe profile]:profile:_authgate_profiles stripe" \
           "--vercel=[vercel profile]:profile:_authgate_profiles vercel" \
           "--gh=[github profile]:profile:_authgate_profiles gh" \
-          "--doctl=[digitalocean profile]:profile:_authgate_profiles doctl"
+          "--doctl=[digitalocean profile]:profile:_authgate_profiles doctl" \
+          "--supabase=[supabase profile]:profile:_authgate_profiles supabase"
         ;;
     esac
   fi
@@ -107,6 +108,7 @@ _authgate_top() {
     'vercel:manage vercel profiles'
     'gh:manage github profiles'
     'doctl:manage digitalocean profiles'
+    'supabase:manage supabase profiles'
   )
   _describe -t commands 'command' cmds
 }
@@ -119,6 +121,7 @@ _authgate_services() {
     'vercel:vercel cli'
     'gh:github cli'
     'doctl:digitalocean doctl'
+    'supabase:supabase cli'
   )
   _describe -t services 'service' svcs
 }
@@ -180,7 +183,7 @@ _authgate_groups_and_shared_profiles() {
   fi
   # Profile names found in any service profile dir
   local svc dir
-  for svc in cf stripe vercel gh doctl; do
+  for svc in cf stripe vercel gh doctl supabase; do
     dir="$HOME/.authgate/profiles/$svc"
     if [[ -d $dir ]]; then
       candidates+=($dir/*(/N:t))

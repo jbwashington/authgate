@@ -27,13 +27,14 @@ restored 2 path(s) ← profile 'personal' (cloudflare)
 
 ## Supported services
 
-| Key      | Tool                  | What gets swapped                                                |
-| -------- | --------------------- | ---------------------------------------------------------------- |
-| `cf`     | Cloudflare wrangler + cloudflared | `~/Library/Preferences/.wrangler/config/` + `~/.cloudflared/` |
-| `stripe` | Stripe CLI            | `~/.config/stripe/config.toml`                                   |
-| `vercel` | Vercel CLI            | `~/Library/Application Support/com.vercel.cli/{auth,config}.json` |
-| `gh`     | GitHub CLI            | `~/.config/gh/{hosts,config}.yml`                                |
-| `doctl`  | DigitalOcean doctl    | `~/Library/Application Support/doctl/config.yaml`                |
+| Key        | Tool                  | What gets swapped                                                |
+| ---------- | --------------------- | ---------------------------------------------------------------- |
+| `cf`       | Cloudflare wrangler + cloudflared | `~/Library/Preferences/.wrangler/config/` + `~/.cloudflared/` |
+| `stripe`   | Stripe CLI            | `~/.config/stripe/config.toml`                                   |
+| `vercel`   | Vercel CLI            | `~/Library/Application Support/com.vercel.cli/{auth,config}.json` |
+| `gh`       | GitHub CLI            | `~/.config/gh/{hosts,config}.yml`                                |
+| `doctl`    | DigitalOcean doctl    | `~/Library/Application Support/doctl/config.yaml`                |
+| `supabase` | Supabase CLI          | `~/.supabase/access-token`                                       |
 
 Paths shown are macOS — Linux variants are handled automatically where the CLI follows XDG conventions.
 

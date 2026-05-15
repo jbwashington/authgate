@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "authgate"
-version = "0.2.0"
-description = "Switch user-level CLI auth between named profiles (cloudflare, stripe, vercel, gh, doctl)"
+version = "0.3.0"
+description = "Switch user-level CLI auth between named profiles (cloudflare, stripe, vercel, gh, doctl, supabase)"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.9"
 authors = [{ name = "James B. Washington", email = "jbwashington@gmail.com" }]
-keywords = ["cli", "auth", "cloudflare", "stripe", "vercel", "github", "profiles", "account-switcher"]
+keywords = ["cli", "auth", "cloudflare", "stripe", "vercel", "github", "supabase", "profiles", "account-switcher"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
