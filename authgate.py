@@ -293,6 +293,28 @@ def cmd_list(args) -> None:
         print(f"{marker}{p}")
 
 
+def cmd_prompt(args) -> None:
+    """Compact active-profile indicator for tmux status bars / shell prompts.
+
+    Reads only ~/.authgate/state.json — no subprocesses — so it is cheap
+    enough to call on every status refresh or prompt render.
+    """
+    state = load_state()
+    keys = args.services or list(SERVICES)
+    parts = []
+    for svc_key in keys:
+        if svc_key not in SERVICES:
+            continue
+        active = state.get(svc_key)
+        if active:
+            parts.append(f"{svc_key}:{active}")
+        elif list_profiles(SERVICES[svc_key]):
+            # profiles exist but none marked active
+            parts.append(f"{svc_key}:?")
+    if parts:
+        print(args.separator.join(parts))
+
+
 def cmd_current(args) -> None:
     svc = resolve_service(args.service)
     active = active_profile(svc.key)
@@ -520,6 +542,18 @@ def build_parser() -> argparse.ArgumentParser:
     ls.set_defaults(func=cmd_list)
 
     sub.add_parser("services", help="show supported services").set_defaults(func=cmd_services)
+
+    pr = sub.add_parser(
+        "prompt",
+        help="compact active-profile indicator for tmux / shell prompts",
+    )
+    pr.add_argument("services", nargs="*", help="limit output to specific service keys")
+    pr.add_argument(
+        "--separator",
+        default=" ",
+        help="string between entries (default: a space)",
+    )
+    pr.set_defaults(func=cmd_prompt)
 
     top_use = sub.add_parser(
         "use",

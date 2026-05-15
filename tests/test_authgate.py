@@ -105,6 +105,26 @@ def test_list_empty(fake_home: Path):
     assert r.returncode == 0, r.stderr
 
 
+def test_prompt_output(fake_home: Path):
+    run_authgate(fake_home, "stripe", "add", "personal")
+    r = run_authgate(fake_home, "prompt")
+    assert r.returncode == 0, r.stderr
+    assert "stripe:personal" in r.stdout
+
+
+def test_prompt_filtered_to_service(fake_home: Path):
+    run_authgate(fake_home, "stripe", "add", "personal")
+    r = run_authgate(fake_home, "prompt", "stripe")
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == "stripe:personal"
+
+
+def test_prompt_empty_when_no_profiles(fake_home: Path):
+    r = run_authgate(fake_home, "prompt")
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == ""
+
+
 def test_add_and_use_roundtrip(fake_home: Path):
     cfg = fake_home / ".config" / "stripe" / "config.toml"
     original = cfg.read_text()

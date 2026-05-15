@@ -19,6 +19,11 @@ _authgate() {
           ;;
         services)
           ;;
+        prompt)
+          _arguments \
+            '*: :_authgate_services' \
+            '--separator=[string between entries]:separator:'
+          ;;
         use)
           _arguments \
             '1: :_authgate_groups_and_shared_profiles' \
@@ -104,6 +109,7 @@ _authgate_top() {
   cmds=(
     'list:show services, profiles, and groups'
     'services:show supported services and install status'
+    'prompt:compact active-profile indicator for tmux/shell prompts'
     'use:switch every service to a group or shared profile name'
     'group:manage explicit cross-service groups'
     'cf:manage cloudflare profiles'

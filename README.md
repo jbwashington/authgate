@@ -164,6 +164,38 @@ authgate group rm titan-mixed
 
 When you rename a profile, any explicit group that referenced it is auto-updated.
 
+## Status bar / prompt indicator
+
+`authgate prompt` emits a compact one-liner of the active profile per service — meant for a tmux status bar or shell prompt so you always see which accounts are live.
+
+```sh
+$ authgate prompt
+cf:titan gh:personal stripe:personal vercel:titan
+
+$ authgate prompt cf vercel        # limit to specific services
+cf:titan vercel:titan
+```
+
+It reads only `~/.authgate/state.json` — no subprocesses — so it's cheap to call on every refresh.
+
+### tmux
+
+Add it to `status-right` (or `status-left`) in `~/.tmux.conf`:
+
+```tmux
+set -g status-right "#[fg=cyan] #(authgate prompt) #[default]%H:%M"
+```
+
+tmux re-runs it every `status-interval` seconds (default 15).
+
+### zsh
+
+Right-side prompt, refreshed before each prompt draw:
+
+```zsh
+precmd() { RPROMPT="%F{cyan}$(authgate prompt)%f" }
+```
+
 ## How it works
 
 Profiles live at `~/.authgate/profiles/<service>/<name>/` as exact mirrors of the source auth files. The active profile per service is tracked in `~/.authgate/state.json`.
