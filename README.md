@@ -35,6 +35,8 @@ restored 2 path(s) ← profile 'personal' (cloudflare)
 | `gh`       | GitHub CLI            | `~/.config/gh/{hosts,config}.yml`                                |
 | `doctl`    | DigitalOcean doctl    | `~/Library/Application Support/doctl/config.yaml`                |
 | `supabase` | Supabase CLI          | `~/.supabase/access-token`                                       |
+| `claude`   | Claude Code           | `~/.claude/.credentials.json` (only the credentials file — your settings, agents, MCP config, and projects are not swapped) |
+| `codex`    | OpenAI Codex          | `~/.codex/auth.json`                                             |
 
 Paths shown are macOS — Linux variants are handled automatically where the CLI follows XDG conventions.
 

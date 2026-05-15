@@ -27,7 +27,7 @@ _authgate() {
         group)
           _authgate_group_dispatch
           ;;
-        cf|stripe|vercel|gh|doctl|supabase)
+        cf|stripe|vercel|gh|doctl|supabase|claude|codex)
           _authgate_service_dispatch $cmd
           ;;
       esac
@@ -90,7 +90,9 @@ _authgate_group_dispatch() {
           "--vercel=[vercel profile]:profile:_authgate_profiles vercel" \
           "--gh=[github profile]:profile:_authgate_profiles gh" \
           "--doctl=[digitalocean profile]:profile:_authgate_profiles doctl" \
-          "--supabase=[supabase profile]:profile:_authgate_profiles supabase"
+          "--supabase=[supabase profile]:profile:_authgate_profiles supabase" \
+          "--claude=[claude code profile]:profile:_authgate_profiles claude" \
+          "--codex=[codex profile]:profile:_authgate_profiles codex"
         ;;
     esac
   fi
@@ -109,6 +111,8 @@ _authgate_top() {
     'gh:manage github profiles'
     'doctl:manage digitalocean profiles'
     'supabase:manage supabase profiles'
+    'claude:manage claude code profiles'
+    'codex:manage codex profiles'
   )
   _describe -t commands 'command' cmds
 }
@@ -122,6 +126,8 @@ _authgate_services() {
     'gh:github cli'
     'doctl:digitalocean doctl'
     'supabase:supabase cli'
+    'claude:claude code'
+    'codex:openai codex'
   )
   _describe -t services 'service' svcs
 }
@@ -183,7 +189,7 @@ _authgate_groups_and_shared_profiles() {
   fi
   # Profile names found in any service profile dir
   local svc dir
-  for svc in cf stripe vercel gh doctl supabase; do
+  for svc in cf stripe vercel gh doctl supabase claude codex; do
     dir="$HOME/.authgate/profiles/$svc"
     if [[ -d $dir ]]; then
       candidates+=($dir/*(/N:t))

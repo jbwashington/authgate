@@ -87,6 +87,19 @@ SERVICES: dict[str, Service] = {
         paths=[HOME / ".supabase/access-token"],
         # supabase cli has no quick `whoami`; skip the identity print on switch
     ),
+    "claude": Service(
+        key="claude",
+        name="claude-code",
+        # Only the credential file — NOT the rest of ~/.claude/, which is user
+        # settings, agents, projects, MCP config, etc. that shouldn't change
+        # per Anthropic account.
+        paths=[HOME / ".claude/.credentials.json"],
+    ),
+    "codex": Service(
+        key="codex",
+        name="codex",
+        paths=[HOME / ".codex/auth.json"],
+    ),
 }
 
 
