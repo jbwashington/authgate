@@ -60,6 +60,27 @@ def test_services_command(fake_home: Path):
     assert "supabase" in r.stdout
 
 
+def test_aws_two_file_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    aws = tmp_path / ".aws"
+    aws.mkdir()
+    (aws / "config").write_text("[default]\nregion = us-east-1\n")
+    (aws / "credentials").write_text("[default]\naws_access_key_id = AKIA_first\n")
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    r = run_authgate(tmp_path, "aws", "add", "first")
+    assert r.returncode == 0, r.stderr
+
+    (aws / "credentials").write_text("[default]\naws_access_key_id = AKIA_second\n")
+    (aws / "config").write_text("[default]\nregion = eu-west-1\n")
+    r = run_authgate(tmp_path, "aws", "add", "second")
+    assert r.returncode == 0, r.stderr
+
+    r = run_authgate(tmp_path, "aws", "use", "first")
+    assert r.returncode == 0, r.stderr
+    assert "AKIA_first" in (aws / "credentials").read_text()
+    assert "us-east-1" in (aws / "config").read_text()
+
+
 def test_supabase_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     token_dir = tmp_path / ".supabase"
     token_dir.mkdir()

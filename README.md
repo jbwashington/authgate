@@ -37,6 +37,8 @@ restored 2 path(s) ← profile 'personal' (cloudflare)
 | `supabase` | Supabase CLI          | `~/.supabase/access-token`                                       |
 | `claude`   | Claude Code           | `~/.claude/.credentials.json` (only the credentials file — your settings, agents, MCP config, and projects are not swapped) |
 | `codex`    | OpenAI Codex          | `~/.codex/auth.json`                                             |
+| `aws`      | AWS CLI               | `~/.aws/config` + `~/.aws/credentials`                           |
+| `gcloud`   | Google Cloud SDK      | `~/.config/gcloud/{credentials.db, access_tokens.db, default_configs.db, active_config, configurations/, legacy_credentials/, application_default_credentials.json}` (not the bundled `virtenv/` or logs/caches) |
 
 Paths shown are macOS — Linux variants are handled automatically where the CLI follows XDG conventions.
 
@@ -200,8 +202,8 @@ Things to verify before submitting:
 
 - **Single-machine.** Profiles aren't designed to be portable between hosts.
 - **No tunnel-aware cloudflared awareness.** If a `cloudflared` tunnel is running when you swap CF accounts, it'll keep using its in-memory credentials until restart, then fail to find its credentials file. Stop tunnels before swapping.
-- **`gcloud` is not included** — it already has first-class multi-account support via `gcloud config configurations`. Use that.
 - **`vercel switch`** exists for teams within one account; this is for switching between separate accounts.
+- **aws and gcloud already have native multi-account.** `aws --profile <name>` and `gcloud config configurations activate <name>` cover most cases without authgate. Use `authgate aws use <name>` when you specifically want the *unqualified* `aws` / `gcloud` command to flip wholesale (rather than passing a flag everywhere).
 
 ## License
 

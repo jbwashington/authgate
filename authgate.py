@@ -100,6 +100,32 @@ SERVICES: dict[str, Service] = {
         name="codex",
         paths=[HOME / ".codex/auth.json"],
     ),
+    "aws": Service(
+        key="aws",
+        name="aws",
+        paths=[
+            HOME / ".aws/config",
+            HOME / ".aws/credentials",
+        ],
+        whoami=["aws", "sts", "get-caller-identity"],
+    ),
+    "gcloud": Service(
+        key="gcloud",
+        name="gcloud",
+        # Curated list of auth-relevant paths under ~/.config/gcloud/.
+        # NOT the whole directory — gcloud bundles its Python venv (~86 MB)
+        # under `virtenv/`, and restore() would wipe that.
+        paths=[
+            HOME / ".config/gcloud/access_tokens.db",
+            HOME / ".config/gcloud/credentials.db",
+            HOME / ".config/gcloud/default_configs.db",
+            HOME / ".config/gcloud/active_config",
+            HOME / ".config/gcloud/configurations",
+            HOME / ".config/gcloud/legacy_credentials",
+            HOME / ".config/gcloud/application_default_credentials.json",
+        ],
+        whoami=["gcloud", "config", "get-value", "account"],
+    ),
 }
 
 
