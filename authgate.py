@@ -35,6 +35,8 @@ class Service:
     paths: list[Path]
     whoami: list[str] | None = None
     excludes: list[str] = field(default_factory=list)
+    # Nerd Font glyph shown by `authgate prompt` in place of the text key.
+    icon: str = ""
 
     def existing_paths(self) -> list[Path]:
         return [p for p in self.paths if p.exists()]
@@ -44,6 +46,7 @@ SERVICES: dict[str, Service] = {
     "cf": Service(
         key="cf",
         name="cloudflare",
+        icon="",  # nf-dev-cloudflare
         paths=[
             HOME / "Library/Preferences/.wrangler/config",
             HOME / ".cloudflared",
@@ -54,12 +57,14 @@ SERVICES: dict[str, Service] = {
     "stripe": Service(
         key="stripe",
         name="stripe",
+        icon="",  # nf-fa-stripe_s
         paths=[HOME / ".config/stripe/config.toml"],
         whoami=["stripe", "config", "--list"],
     ),
     "vercel": Service(
         key="vercel",
         name="vercel",
+        icon="",  # nf-dev-vercel
         paths=[
             HOME / "Library/Application Support/com.vercel.cli/auth.json",
             HOME / "Library/Application Support/com.vercel.cli/config.json",
@@ -69,6 +74,7 @@ SERVICES: dict[str, Service] = {
     "gh": Service(
         key="gh",
         name="github",
+        icon="",  # nf-dev-github
         paths=[
             HOME / ".config/gh/hosts.yml",
             HOME / ".config/gh/config.yml",
@@ -78,18 +84,21 @@ SERVICES: dict[str, Service] = {
     "doctl": Service(
         key="doctl",
         name="digitalocean",
+        icon="",  # nf-dev-digitalocean
         paths=[HOME / "Library/Application Support/doctl/config.yaml"],
         whoami=["doctl", "account", "get"],
     ),
     "supabase": Service(
         key="supabase",
         name="supabase",
+        icon="",  # nf-dev-supabase
         paths=[HOME / ".supabase/access-token"],
         # supabase cli has no quick `whoami`; skip the identity print on switch
     ),
     "claude": Service(
         key="claude",
         name="claude-code",
+        icon="",  # nf-cod-sparkle (no brand glyph for Anthropic)
         # Only the credential file — NOT the rest of ~/.claude/, which is user
         # settings, agents, projects, MCP config, etc. that shouldn't change
         # per Anthropic account.
@@ -98,11 +107,13 @@ SERVICES: dict[str, Service] = {
     "codex": Service(
         key="codex",
         name="codex",
+        icon="",  # nf-fa-robot (no brand glyph for OpenAI)
         paths=[HOME / ".codex/auth.json"],
     ),
     "aws": Service(
         key="aws",
         name="aws",
+        icon="",  # nf-dev-aws
         paths=[
             HOME / ".aws/config",
             HOME / ".aws/credentials",
@@ -301,16 +312,23 @@ def cmd_prompt(args) -> None:
     """
     state = load_state()
     keys = args.services or list(SERVICES)
+    # Icons (Nerd Font glyphs) by default; fall back to text keys with
+    # --labels, the AUTHGATE_PROMPT_LABELS env var, or when a service has
+    # no glyph defined.
+    use_labels = args.labels or os.environ.get("AUTHGATE_PROMPT_LABELS")
     parts = []
     for svc_key in keys:
         if svc_key not in SERVICES:
             continue
+        svc = SERVICES[svc_key]
+        label = svc_key if use_labels or not svc.icon else svc.icon
+        sep = ":" if use_labels or not svc.icon else " "
         active = state.get(svc_key)
         if active:
-            parts.append(f"{svc_key}:{active}")
-        elif list_profiles(SERVICES[svc_key]):
+            parts.append(f"{label}{sep}{active}")
+        elif list_profiles(svc):
             # profiles exist but none marked active
-            parts.append(f"{svc_key}:?")
+            parts.append(f"{label}{sep}?")
     if parts:
         print(args.separator.join(parts))
 
@@ -552,6 +570,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--separator",
         default=" ",
         help="string between entries (default: a space)",
+    )
+    pr.add_argument(
+        "--labels",
+        action="store_true",
+        help="use text keys (cf:, gh:) instead of Nerd Font icons",
     )
     pr.set_defaults(func=cmd_prompt)
 

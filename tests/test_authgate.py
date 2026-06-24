@@ -105,16 +105,27 @@ def test_list_empty(fake_home: Path):
     assert r.returncode == 0, r.stderr
 
 
+STRIPE_ICON = "\ued54"  # nf-fa-stripe_s, the default glyph for the stripe service
+
+
 def test_prompt_output(fake_home: Path):
     run_authgate(fake_home, "stripe", "add", "personal")
     r = run_authgate(fake_home, "prompt")
     assert r.returncode == 0, r.stderr
-    assert "stripe:personal" in r.stdout
+    # default rendering uses the Nerd Font icon, not the text key
+    assert f"{STRIPE_ICON} personal" in r.stdout
 
 
 def test_prompt_filtered_to_service(fake_home: Path):
     run_authgate(fake_home, "stripe", "add", "personal")
     r = run_authgate(fake_home, "prompt", "stripe")
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == f"{STRIPE_ICON} personal"
+
+
+def test_prompt_labels_fallback(fake_home: Path):
+    run_authgate(fake_home, "stripe", "add", "personal")
+    r = run_authgate(fake_home, "prompt", "stripe", "--labels")
     assert r.returncode == 0, r.stderr
     assert r.stdout.strip() == "stripe:personal"
 

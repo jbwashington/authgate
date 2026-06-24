@@ -168,13 +168,19 @@ When you rename a profile, any explicit group that referenced it is auto-updated
 
 `authgate prompt` emits a compact one-liner of the active profile per service — meant for a tmux status bar or shell prompt so you always see which accounts are live.
 
+By default each service is shown as its **brand icon** (a [Nerd Font](https://www.nerdfonts.com/) glyph) instead of its text key, so the line stays short:
+
 ```sh
-$ authgate prompt
-cf:titan gh:personal stripe:personal vercel:titan
+$ authgate prompt                  #  titan   personal   personal   titan
+                                   # (cf, gh, stripe, vercel logos)
 
 $ authgate prompt cf vercel        # limit to specific services
-cf:titan vercel:titan
+
+$ authgate prompt --labels         # text keys instead of icons:
+cf:titan gh:personal stripe:personal vercel:titan
 ```
+
+The icons require a Nerd Font in your terminal. If you don't have one, pass `--labels` (or set `AUTHGATE_PROMPT_LABELS=1`) to fall back to `cf:`-style text keys. Services with no defined glyph fall back to their text key automatically.
 
 It reads only `~/.authgate/state.json` — no subprocesses — so it's cheap to call on every refresh.
 
